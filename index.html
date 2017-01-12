@@ -1,0 +1,768 @@
+<html lang="en">
+
+    <head>
+
+        <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+
+        <link href="http://getbootstrap.com/examples/justified-nav/justified-nav.css" rel="stylesheet">
+        <script src="http://d3js.org/queue.v1.min.js"></script>
+        
+        <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+        <style>
+            .axis path {
+                fill: none;
+                stroke: #777;
+                shape-rendering: crispEdges; 
+            }
+            .axis text {
+                font-family: Lato;
+                font-size: 13px;
+            }
+            .tooltip {
+                color: black;
+                background-color: gainsboro;
+                padding: .5em;
+                border-radius: 2px;
+                position: absolute;
+                width: 100px;
+                height: 50px;
+                pointer-events: none;
+            }
+            body {
+                font: 10px sans-serif;
+            }
+            .arc path {
+                stroke: #fff;
+            }
+            
+         
+        </style>
+
+    </head>
+
+    <body>
+        <svg id="visualisation" width="800" height="300"></svg> 
+        <svg id="visualisation4" width="400" height="300"></svg>
+        <svg id="visualisation2" width="800" height="300"></svg> 
+        <svg id="visualisation3" width="500" height="300"></svg> 
+        
+        
+    <script>
+        d3.svg.legend = function() {
+
+            var legendValues=[{color: "nnnnn", stop: [0,1]},{color: "red", stop: [1,2]},{color: "blue", stop: [2,3]}];
+            console.log (legendValues)   ; 
+            var legendScale;
+            var cellWidth = 30;
+            var cellHeight = 20;
+            var adjustable = false;
+            var labelFormat = d3.format(".01f");
+            var labelUnits = "units";
+            var lastValue = 0;
+            var changeValue = 1;
+            var orientation = "horizontal";
+            var cellPadding = 0;
+
+            function legend(g) {
+
+                function cellRange(valuePosition, changeVal) {
+                    //legendValues[valuePosition].stop[0] += changeVal;
+                    //legendValues[valuePosition - 1].stop[1] += changeVal;
+                    redraw();
+                }
+
+                function redraw() {
+
+                    g.selectAll("g.legendCells").data(legendValues).exit().remove();
+                    g.selectAll("g.legendCells").select("rect").style("fill", function(d) {return d.color});
+                    if (orientation == "vertical") {
+                        g.selectAll("g.legendCells").select("text.breakLabels").style("display", "block").style("text-anchor", "start").attr("x", cellWidth + cellPadding).attr("y", 5 + (cellHeight / 2)).text(function(d) {return labelFormat(d.stop[0]) + (d.stop[1].length > 0 ? " - " + labelFormat(d.stop[1]) : "")})
+                        g.selectAll("g.legendCells").attr("transform", function(d,i) {return "translate(0," + (i * (cellHeight + cellPadding)) + ")" });
+                    }
+                    else {
+                        g.selectAll("g.legendCells").attr("transform", function(d,i) {return "translate(" + (i * cellWidth) + ",0)" });
+                        g.selectAll("text.breakLabels").style("text-anchor", "middle").attr("x", 0).attr("y", -7).style("display", function(d,i) {return i == 0 ? "none" : "block"}).text(function(d) {return labelFormat(d.stop[0])});
+                    }
+                }
+                g.selectAll("g.legendCells")
+                    .data(legendValues)
+                    .enter()
+                    .append("g")
+                    .attr("class", "legendCells")
+                    .attr("transform", function(d,i) { console.log (d)   ; return "translate(" + (i * (cellWidth + cellPadding)) + ",0)" })
+
+                g.selectAll("g.legendCells")
+                    .append("rect")
+                    .attr("height", cellHeight)
+                    .attr("width", cellWidth)
+                    .style("fill", function(d) {console.log (d.color) ;   return d.color })
+                    .style("stroke", "black")
+                    .style("stroke-width", "2px");
+
+                g.selectAll("g.legendCells")
+                    .append("text")
+                    .attr("class", "breakLabels")
+                    .style("pointer-events", "none");
+
+                g.append("text")
+                    .text(labelUnits)
+                    .attr("y", -7);
+
+                redraw();
+            }
+
+            legend.inputScale = function(newScale) {
+                if (!arguments.length) return scale;
+                scale = newScale;
+                console.log("scale = " + scale) ; 
+                legendValues = [];
+                legendValues  =  newScale ; 
+                return this;
+            }
+
+            legend.scale = function(testValue) {
+                var foundColor = legendValues[legendValues.length - 1].color;
+                for (el in legendValues) {
+                    if(testValue < legendValues[el].stop[1]) {
+                        foundColor = legendValues[el].color;
+                        break;
+                    }
+                }
+                return foundColor;
+            }
+
+            legend.cellWidth = function(newCellSize) {
+                if (!arguments.length) return cellWidth;
+                cellWidth = newCellSize;
+                return this;
+            }
+
+            legend.cellHeight = function(newCellSize) {
+                if (!arguments.length) return cellHeight;
+                cellHeight = newCellSize;
+                return this;
+            }
+
+            legend.cellPadding = function(newCellPadding) {
+                if (!arguments.length) return cellPadding;
+                cellPadding = newCellPadding;
+                return this;
+            }
+
+            legend.cellExtent = function(incColor,newExtent) {
+                var selectedStop = legendValues.filter(function(el) {return el.color == incColor})[0].stop;
+                if (arguments.length == 1) return selectedStop;
+                legendValues.filter(function(el) {return el.color == incColor})[0].stop = newExtent;
+                return this;
+            }
+
+            legend.cellStepping = function(incStep) {
+                if (!arguments.length) return changeValue;
+                changeValue = incStep;
+                return this;
+            }
+
+            legend.units = function(incUnits) {
+                if (!arguments.length) return labelUnits;
+                labelUnits = incUnits;
+                return this;
+            }
+
+            legend.orientation = function(incOrient) {
+                if (!arguments.length) return orientation;
+                orientation = incOrient;
+                return this;
+            }
+
+            legend.labelFormat = function(incFormat) {
+                if (!arguments.length) return labelFormat;
+                labelFormat = incFormat;
+                if (incFormat == "none") {
+                    labelFormat = function(inc) {return inc};
+                }
+                return this;
+            }
+
+            return legend;    
+
+        }
+        var tooltip = d3.select("body").append("div")
+                        .attr("class", "tooltip")
+                        .style("opacity", 0);
+        queue()   
+            .defer(d3.json, "data10.json")
+            .await(drawChartIshaq);
+        function InitChart(error, donnee) {
+            if (error) throw error;
+            
+            var vis = d3.select("#visualisation"),
+                WIDTH = 800,
+                HEIGHT = 300,
+                MARGINS = {
+                    top: 20,
+                    right: 20,
+                    bottom: 20,
+                    left: 70
+                },
+                widthF = WIDTH - MARGINS.left - MARGINS.right,
+                heightF = HEIGHT - MARGINS.top - MARGINS.bottom,
+                parseDate = d3.time.format("%m/%d/%Y").parse,
+                bisectDate = d3.bisector(function(d) { return d.sqft_li_lot; }).left,
+                formatValue = d3.format(",.2f"),
+                formatCurrency = function(d) { return "$" + formatValue(d); },
+                xScale = d3.scale.linear().range([MARGINS.left, WIDTH - MARGINS.right]).domain([0,2]),
+                yScale = d3.scale.linear().range([HEIGHT - MARGINS.top, MARGINS.bottom]).domain([0,2500000]),
+                xAxis = d3.svg.axis()
+                    .scale(xScale),
+                yAxis = d3.svg.axis()
+                    .scale(yScale)
+                    .orient("left");
+
+            vis.append("svg:g")
+                .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
+                .attr("class","axis")
+                .call(xAxis)
+                .append("text")
+                    .attr("y", -15)
+                    .attr("x", WIDTH- 20)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Surface living/ Surface lot");
+
+            vis.append("svg:g")
+                .attr("transform", "translate(" + (MARGINS.left) + ",0)")
+                .attr("class","axis")
+                .call(yAxis)
+                .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 5)
+                    .attr("x", -15)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Price ($)");
+
+            var lineGen = d3.svg.line()
+                                    .x(function(d) { return xScale(d.sqft_li_lot);  })
+                                    .y(function(d) { return yScale(d.price);  }); 
+                                
+            var data3 = donnee.sort(function(a,b) { return +a.sqft_li_lot - +b.sqft_li_lot; });
+            vis.selectAll("dot")	
+                .data(data3)			
+                .enter().append("circle")								
+                .attr("r", 2)
+                .style("fill", function(d) {  
+                if (d.floors == 1 )  return  "#00ff00" ; 
+                if ( d.floors == 2 ) return  "#ff0000" ;
+                if ( d.floors == 3 )  return  "#0000ff" ; 
+            })
+                .attr("cx", function(d) { return xScale(d.sqft_li_lot); })		 
+                .attr("cy", function(d) { return yScale(d.price); })		
+                .on("mouseover", function(d) {		
+                tooltip.transition()		
+                    .duration(200)		
+                    .style("opacity", .9);		
+                tooltip.html( "li/lot : "+ formatValue( d.sqft_li_lot ) + "<br/> price :"  + d.price)	
+                    .style("left", (d3.event.pageX) + "px")		
+                    .style("top", (d3.event.pageY - 28) + "px");
+                console.log("p0 = " + d.price) ; 
+                drawPie(donnee, d.sqft_li_lot ,  d.price) ; 
+            })					
+                .on("mouseout", function(d) {		
+                tooltip.transition()		
+                    .duration(500)		
+                    .style("opacity", 0);	
+            });
+            
+            var data4 = data3.filter(function(d) { return d.floors == 1; }) ;
+            vis.append('svg:path')
+                .attr('d', lineGen(data4))
+                .attr('stroke', 'green')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+            
+            var data5 = data3.filter(function(d) { return d.floors == 2; }) ;
+            vis.append('svg:path')
+                .attr('d', lineGen(data5))
+                .attr('stroke', 'red')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+
+            
+
+            var data6 = data3.filter(function(d) { return d.floors == 3; }) ;
+            
+            
+            vis.append('svg:path')
+                .attr('d', lineGen(data6))
+                .attr('stroke', 'blue')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+                           // draw legend
+           
+            
+            sampleCategoricalData = [ {color: "#00ff00", stop: ["floors : 1 ",""]} , {color: "#ff0000", stop: ["floors : 2 ",""]} ,
+                                     {color: "#0000ff", stop: ["floors : 3 ",""]}  ] ; 
+            sampleOrdinal = d3.scale.category20().domain(sampleCategoricalData);
+            console.log("samp :  "  + sampleOrdinal) ; 
+            verticalLegend = d3.svg.legend().labelFormat("none").cellPadding(5).orientation("vertical").units("Legend" 
+                            ).cellWidth(25).cellHeight(18).inputScale(sampleCategoricalData).cellStepping(10);
+
+            vis.append("g").attr("transform", "translate("+ ( WIDTH - MARGINS.left - 50 ) +"," + ( MARGINS.top + 30 ) + ")").attr("class", "legend").call(verticalLegend);
+        }
+        
+        function TimeChart(error, donnee) {
+            if (error) throw error;
+            var vis = d3.select("#visualisation2"),
+                WIDTH = 800,
+                HEIGHT = 300,
+                MARGINS = {
+                    top: 20,
+                    right: 20,
+                    bottom: 20,
+                    left: 70
+                },
+                parseDate = d3.time.format("%m/%d/%Y").parse,
+                formatTime = d3.time.format("%m/%d/%Y"),
+                formatValue = d3.format(",.2f"),
+                x = d3.time.scale().range([MARGINS.left, WIDTH - MARGINS.right]),
+                //xScale = d3.scale.linear().range([MARGINS.left, WIDTH - MARGINS.right]).domain([0,2]),
+                yScale = d3.scale.linear().range([HEIGHT - MARGINS.top, MARGINS.bottom]).domain([0,2500000]),
+                xAxis = d3.svg.axis()
+                            .scale(x).tickFormat(d3.time.format("%m/%y"));
+                yAxis = d3.svg.axis()
+                    .scale(yScale)
+                    .orient("left");
+            // Get the data
+            var data3 = donnee ;  //            
+            // Get the data
+            data3.forEach(function(d) { d.Date = parseDate(d.Date);  });
+            data3.sort(function(a,b) { return +a.Date - +b.Date; }); 
+            
+            
+            
+            // Scale the range of the data
+            x.domain([data3[0].Date, data3[data3.length - 1].Date]);
+            //x.domain(d3.extent(data3, function(d) { return d.Date; }) ; 
+            
+            vis.append("svg:g")
+                .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
+                .attr("class","axis")
+                .call(xAxis)
+                .append("text")
+                    .attr("y", -15)
+                    .attr("x", WIDTH -20)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Date vente");
+
+            vis.append("svg:g")
+                .attr("transform", "translate(" + (MARGINS.left) + ",0)")
+                .attr("class","axis")
+                .call(yAxis)
+                .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 5)
+                    .attr("x", -15)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Price ($)");
+            
+            vis.selectAll("dot")	
+                .data(data3)			
+                .enter().append("circle")								
+                .attr("r", 2)
+                .style("fill", function(d) {  
+                if (d.floors == 1 )  return  "#00ff00" ; 
+                if ( d.floors == 2 ) return  "#ff0000" ;
+                if ( d.floors == 3 )  return  "#0000ff" ; 
+            })
+                .attr("cx", function(d) { return x(d.Date); })		 
+                .attr("cy", function(d) { return yScale(d.price); })		
+                .on("mouseover", function(d) {		
+                tooltip.transition()		
+                    .duration(200)		
+                    .style("opacity", .9);		
+                tooltip.html(formatTime(d.Date )  + "<br/>"  + d.price)	
+                    .style("left", (d3.event.pageX) + "px")		
+                    .style("top", (d3.event.pageY - 28) + "px");	
+            })					
+                .on("mouseout", function(d) {		
+                tooltip.transition()		
+                    .duration(500)		
+                    .style("opacity", 0);	
+            });
+            
+            
+            var lineGen = d3.svg.line()
+                                .x(function(d) {
+                                    return x(d.Date);
+
+                                })
+                                .y(function(d) {
+                                    return yScale(d.price);
+
+                                }); 
+
+            
+            var data4 = data3.filter(function(d) { return d.floors == 1; }) ;
+            vis.append('svg:path')
+                .attr('d', lineGen(data4))
+                .attr('stroke', 'green')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+            
+            var data6 = data3.filter(function(d) { return d.floors == 3; }) ;
+            vis.append('svg:path')
+                .attr('d', lineGen(data6))
+                .attr('stroke', 'blue')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none') ; 
+            
+            var data5 = data3.filter(function(d) { return d.floors == 2; }) ;
+            vis.append('svg:path')
+                .attr('d', lineGen(data5))
+                .attr('stroke', 'red')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+
+
+        }
+        function BasementChart(error, donnee) {
+            if (error) throw error;
+            var vis = d3.select("#visualisation3"),
+                WIDTH = 500,
+                HEIGHT = 300,
+                MARGINS = {
+                    top: 20,
+                    right: 20,
+                    bottom: 20,
+                    left: 70
+                },
+                xScale = d3.scale.linear().range([MARGINS.left, WIDTH - MARGINS.right]).domain([-0.5  , 1.5 ]),
+                yScale = d3.scale.linear().range([HEIGHT - MARGINS.top, MARGINS.bottom]).domain([450000,650000]),
+                xAxis = d3.svg.axis()
+                            .scale(xScale)
+                            .tickFormat(d3.format("d")) ;
+                yAxis = d3.svg.axis()
+                            .scale(yScale)
+                            .orient("left");
+            // Get the data
+            var data3 = donnee ;  //            
+            
+            vis.append("svg:g")
+                .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
+                .attr("class","axis")
+                .call(xAxis)
+                .append("text")
+                    .attr("y", 5)
+                    .attr("x", WIDTH)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Avec/sans basement");
+                
+
+            vis.append("svg:g")
+                .attr("transform", "translate(" + (MARGINS.left) + ",0)")
+                .attr("class","axis")
+                .call(yAxis)
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 5)
+                .attr("x", -15)
+                .attr("dy", ".71em")
+                .style("text-anchor", "end")
+                .text("Price ($)");
+
+            var data10 = [] ; 
+            function calculMean() {
+                for(i  = 1 ; i< 4 ; i ++ ) {
+                    for (j = 0 ; j<2; j++){
+                        var data11 = data3.filter(function(d) { return d.floors == i; }) ;
+                        data11 = data11.filter(function(d) { return d.avec_sans_bas == j; }) ;
+                        mean = d3.mean(data11,function(d) { return +d.price  })
+                        var raww = {
+                            "price": mean,
+                            "floors" : i,
+                            "avec_sans_bas": j
+                        }
+                        data10.push(raww) ;
+
+                    }
+                }    
+               
+            }
+            calculMean() ; 
+            console.log("data10 = " + data10[5].price) ; 
+            
+            
+            vis.selectAll("dot")	
+                .data(data10)			
+                .enter().append("circle")								
+                .attr("r", 2)
+                .style("fill", function(d) {  
+                if (d.floors == 1 )  return  "#00ff00" ; 
+                if ( d.floors == 2 ) return  "#ff0000" ;
+                if ( d.floors == 3 )  return  "#0000ff" ; 
+            })
+                .attr("cx", function(d) { return xScale(d.avec_sans_bas); })		 
+                .attr("cy", function(d) { return yScale(d.price); })		
+                .on("mouseover", function(d) {		
+                tooltip.transition()		
+                    .duration(200)		
+                    .style("opacity", .9);		
+                tooltip.html( d.avec_sans_bas  + "<br/>"  + d.price)	
+                    .style("left", (d3.event.pageX) + "px")		
+                    .style("top", (d3.event.pageY - 28) + "px");	
+            })					
+                .on("mouseout", function(d) {		
+                tooltip.transition()		
+                    .duration(500)		
+                    .style("opacity", 0);	
+            });
+
+
+            var lineGen = d3.svg.line()
+                                .x(function(d) { return xScale(d.avec_sans_bas); })
+                                .y(function(d) { return yScale(d.price); }); 
+
+
+            var data4 = data10.filter(function(d) { return d.floors == 1; }) ;
+            console.log("data4 " + data4.length) ; 
+            vis.append('svg:path')
+                .attr('d', lineGen(data4))
+                .attr('stroke', 'green')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+            
+            var data6 = data10.filter(function(d) { return d.floors == 3; }) ;
+            vis.append('svg:path')
+                .attr('d', lineGen(data6))
+                .attr('stroke', 'blue')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none') ; 
+                
+            var data5 = data10.filter(function(d) { return d.floors == 2; }) ;
+            vis.append('svg:path')
+                .attr('d', lineGen(data5))
+                .attr('stroke', 'red')
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+            
+        }
+        
+        
+        function calculDataPie ( donnee, sqft_li_lot ,  price){
+            var data = [] ; 
+            var data0 = donnee ; 
+            console.log( "len tot : " + donnee.length ) ;
+            // filter 1 
+            if (  sqft_li_lot == -1 && price == -1  ) var  data1 =  data0 ; 
+            else{
+                var p = price /10 ;
+                var data00 = data0.filter(function(d) { return (d.price < price+ p) ; }) ;
+                var data01 = data00.filter(function(d) { return (d.price > price- p) ; }) ;
+                var data10 = data0.filter(function(d) { return (d.sqft_li_lot < sqft_li_lot + 0.2 ) ; }) ;
+                var data1 = data00.filter(function(d) { return (d.sqft_li_lot > sqft_li_lot - 0.2) ; }) ;
+                
+            }
+            // 
+            var data2 = data1.filter(function(d) { return d.avec_sans_bas == 0; }) ;
+            var data3 = data2.filter(function(d) { return d.floors == 1; }) ;
+            var data4 = data2.filter(function(d) { return d.floors == 2; }) ;
+            var data5 = data2.filter(function(d) { return d.floors == 3; }) ;
+             
+            var node = {
+                "nodeData": {
+                    "age": "Sans Basmnt",
+                    "population": data2.length
+                },
+                "subData": [{
+                    "nodeData": {
+                        "age": "F1",
+                        "population": data3.length
+                    }
+                },{
+                    "nodeData": {
+                        "age": "F2",
+                        "population": data4.length
+                    }
+                }, {
+                    "nodeData": {
+                        "age": "F3",
+                        "population": data5.length
+                    }
+                }]
+            } 
+            data.push(node) ; 
+            
+            data2 = data1.filter(function(d) { return d.avec_sans_bas == 1; }) ;
+            data3 = data2.filter(function(d) { return d.floors == 1; }) ;
+            data4 = data2.filter(function(d) { return d.floors == 2; }) ;
+            data5 = data2.filter(function(d) { return d.floors == 3; }) ;
+            
+            node = {
+                    "nodeData": {
+                    "age": "Avec Basmnt",
+                    "population": data2.length
+                    },
+                    "subData": [{
+                        "nodeData": {
+                            "age": "F2",
+                            "population": data4.length
+                        }
+                    },{
+                        "nodeData": {
+                             "age": "F1",
+                            "population": data3.length
+                        }
+                    }, {
+                        "nodeData": {
+                            "age": "F3",
+                            "population": data5.length
+                        }
+                    }]
+            }    
+            
+            
+            
+            
+            data.push(node) ; 
+            return data ; 
+        }
+        
+        function drawPie(donnee , sqft_li_lot ,  price){
+            
+            
+            data = calculDataPie(donnee, sqft_li_lot ,  price ) ; 
+            
+            var width = 500,
+                height = 300,
+                maxRadius = Math.min(width, 250) / 2,
+                MARGINS = {
+                    top: 10,
+                    right: 20,
+                    bottom: 20,
+                    left: 70
+                };
+            
+            var vis = d3.select("#visualisation4")
+                            .attr("width", width)
+                            .attr("height", height)
+                            .append("g")
+                            .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+            var titre = "Ventes autour du prix et rapport surface living/lot." ; 
+            if ( price == -1  ){
+                vis.append("text")
+                    .attr("x", -200 )    
+                    .attr("class","txt")
+                    .attr("y", 0 + (MARGINS.top ) - height / 2 )
+                    .style("font-size", "12px") 
+                    .text(titre );
+                
+            }
+            var f = d3.format(",.2f");
+            var titre2 = "Ventes autour du prix " + price + " ($) et rapport surface living/lot : " + f(sqft_li_lot) ;
+             
+            if (price != -1 ){
+                d3.select(".txt")
+                    .remove(); 
+                
+                vis.append("text")
+                    .attr("x", -200 )    
+                    .attr("class","txt")
+                    .attr("y", 0 + (MARGINS.top ) - height / 2 )
+                    .style("font-size", "12px") 
+                    .text(titre2 );
+
+            }            
+            
+            var multiLevelData = [];
+            var setMultiLevelData = function(data) {
+                if (data == null)
+                    return;
+                var level = data.length,
+                    counter = 0,
+                    index = 0,
+                    currentLevelData = [],
+                    queue = [];
+                
+                for (var i = 0; i < data.length; i++) {
+                    queue.push(data[i]);
+                };
+                
+                while (!queue.length == 0) {
+                    var node = queue.shift();
+                    if  (node.nodeData.population >0 )   currentLevelData.push(node);
+                    level--;
+                    
+                    if (node.subData) {
+                        for (var i = 0; i < node.subData.length; i++) {
+                            queue.push(node.subData[i]);
+                            counter++;
+                        };
+                    }
+                    if (level == 0) {
+                        level = counter;
+                        counter = 0;            multiLevelData.push(currentLevelData);
+                        currentLevelData = [];
+                    }
+                }
+                console.log("level =  "  + level) ; 
+            }
+            
+            var drawPieChart = function(_data, index) {
+                var pie = d3.layout.pie()
+                            .sort(null)
+                            .value(function(d) {
+                                return d.nodeData.population;
+                            });
+                
+                var arc = d3.svg.arc()
+                            .outerRadius((index + 1) * pieWidth - 1)
+                            .innerRadius(index * pieWidth);
+                
+                var g = vis.selectAll(".arc" + index).data(pie(_data)).enter().append("g")
+                                .attr("class", "arc" + index);
+                
+                g.append("path").attr("d", arc)
+                                .style("fill", function(d) {
+                                    if (d.data.nodeData.age == "F1") return "#00ff00" ;
+                                    if (d.data.nodeData.age == "F2") return "#ff0000" ;
+                                    if (d.data.nodeData.age == "F3") return "#0000ff" ;
+                                    return color(d.data.nodeData.age);
+                                    
+                                });
+                g.append("text").attr("transform", function(d) {
+                                        return "translate(" + arc.centroid(d) + ")";
+                                    })
+                                    .attr("dy", ".35em").style("text-anchor", "middle")
+                                    .text(function(d) {
+                                        return d.data.nodeData.age;
+                                    });
+            }
+            
+            setMultiLevelData(data);
+            var pieWidth = parseInt(maxRadius / multiLevelData.length) - multiLevelData.length;
+            var color = d3.scale.category10();
+            
+            for (var i = 0; i < multiLevelData.length; i++) {
+                var _cData = multiLevelData[i];
+                drawPieChart(_cData, i);
+            }
+            
+
+        }
+        function drawChartIshaq(error, donnee) {
+            InitChart(error, donnee) ;
+            drawPie(donnee , -1 , -1 );
+            TimeChart(error, donnee) ;
+            BasementChart(error, donnee) ; 
+            
+        }
+        
+        
+        
+    </script>
+    </body>
+
+</html>
